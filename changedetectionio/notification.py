@@ -32,6 +32,18 @@ valid_notification_formats = {
     default_notification_format_for_watch: default_notification_format_for_watch
 }
 
+class Jinja2Environment(Environment):
+    def __init__(self, *args, **kwargs):
+        super(Jinja2Environment, self).__init__(*args, **kwargs)
+        def from_json(value):
+            try:
+                return json.loads(value)
+            except json.JSONDecodeError:
+                # TODO: log this
+                return dict()
+
+        self.filters['from_json'] = from_json
+
 # include the decorator
 from apprise.decorators import notify
 
@@ -85,14 +97,14 @@ def process_notification(n_object, datastore):
     notification_parameters = create_notification_parameters(n_object, datastore)
 
     # Get the notification body from datastore
-    jinja2_env = Environment(loader=BaseLoader)
+    jinja2_env = Jinja2Environment(loader=BaseLoader)
     n_body = jinja2_env.from_string(n_object.get('notification_body', default_notification_body)).render(**notification_parameters)
     n_title = jinja2_env.from_string(n_object.get('notification_title', default_notification_title)).render(**notification_parameters)
     n_format = valid_notification_formats.get(
         n_object['notification_format'],
         valid_notification_formats[default_notification_format],
     )
-    
+
     # https://github.com/caronc/apprise/wiki/Development_LogCapture
     # Anything higher than or equal to WARNING (which covers things like Connection errors)
     # raise it as an exception
@@ -168,7 +180,7 @@ def process_notification(n_object, datastore):
                 log_value = logs.getvalue()
                 if log_value and 'WARNING' in log_value or 'ERROR' in log_value:
                     raise Exception(log_value)
-                
+
                 sent_objs.append({'title': n_title,
                                   'body': n_body,
                                   'url' : url,

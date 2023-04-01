@@ -203,16 +203,16 @@ class ValidateJinja2Template(object):
     def __call__(self, form, field):
         from changedetectionio import notification
 
-        from jinja2 import Environment, BaseLoader, TemplateSyntaxError
+        from jinja2 import BaseLoader, TemplateSyntaxError
         from jinja2.meta import find_undeclared_variables
 
 
         try:
-            jinja2_env = Environment(loader=BaseLoader)
+            jinja2_env = notification.Jinja2Environment(loader=BaseLoader)
             jinja2_env.globals.update(notification.valid_tokens)
             rendered = jinja2_env.from_string(field.data).render()
         except TemplateSyntaxError as e:
-            raise ValidationError(f"This is not a valid Jinja2 template: {e}") from e
+            raise ValidationError(f"This is not a valid Jinja2 template: {e} ({jinja2_env.filters})") from e
 
         ast = jinja2_env.parse(field.data)
         undefined = ", ".join(find_undeclared_variables(ast))
